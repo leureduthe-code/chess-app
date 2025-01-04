@@ -290,6 +290,42 @@ ex  [[-1 0] [1 0] [0 -1] [0 1]] for the rook "
 
 
 
+
+(comment (for [row (range (count board))
+       col (range (count (nth board row)))]
+   (let [piece (get-in board [col row])])
+   )
+
+(doseq [row (range (count board))
+        col (range (count (nth board row)))]
+  (println "Processing:" [col row]))
+)
+
+(defn find-moves 
+  "given a piece (ex :K) and a position (ex e4) gives the moves of that piece"
+  [ piece position]
+  (cond
+    (or (= :P piece) (= :p piece)) ( pawn-moves board position)
+    :else nil))
+
+
+(defn get-opponent-moves 
+  "given the board and the opponent color , give all the possible moves of his pieces"
+  [board opponent-color] 
+  
+  (->>(for [row (range (count board))
+            col (range (count (nth board row)))]
+        (let [piece (get-in board [col row])
+              chess-notation (coord->chess-notation [col row])]
+           (when (some #{piece} (opponent-color players)) ;; if the piece is opponent piece compute the moves and add them
+             (find-moves piece chess-notation))))
+      (filter #(not (nil? %)))
+      (flatten)
+      (set)))
+
+
+(get-opponent-moves board :black)
+
 (defn print-board-with-labels [board]
   (let [to-string (fn [cell]
                     (if cell
@@ -308,7 +344,11 @@ ex  [[-1 0] [1 0] [0 -1] [0 1]] for the rook "
   (print ">> You can play : ")
   (apply println (apply f args)))
 
+
+
+
 (defn game-loop []
+  (println)
   (println "Welcome to CHESS in Clojure")
   (println "Here is the board :")
   (print-board-with-labels board)
@@ -326,6 +366,5 @@ ex  [[-1 0] [1 0] [0 -1] [0 1]] for the rook "
 
 
 (defn -main [& args] 
-  (game-loop)
-  )
+  (game-loop))
 
