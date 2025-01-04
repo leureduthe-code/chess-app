@@ -52,19 +52,44 @@
   [parsed-pos] 
   (map #(keyword %) parsed-pos))
 
+(defn get-coord
+  "turns keyword-pos in vector coord '(:e :1) -> '(7 4)"
+  [keyword-pos]
+  (list ((second keyword-pos) chess-notation) ((first keyword-pos) chess-notation)))
+
+
 (defn get-in-pos
   "get what is at position in board from chess notation"
   [board notation]
   (let [parsed (parse-pos notation)
-         _ (assert (not= :error parsed) (str "notation must result in valid position : " notation))
+        _ (assert (not= :error parsed) (str "notation must result in valid position : " notation))
         pos (parsed-pos->keyword-pos parsed) 
-        y ((first pos) chess-notation)
-        x ((second pos) chess-notation)] 
-    (if-not (or (= nil x) (= nil y))
-      (get-in board [x y])
+        coord (get-coord pos)] 
+    (if (not-any? nil? coord)
+     (get-in board [(first coord) (second coord)])
       (error-msg "Cannot retrieve for notation :" notation))
     ))
 
-(get-in-pos board "e1")
+(defn put-in-pos [board from to piece]
+  (let [parsed-to (parse-pos to)
+        parsed-from (parse-pos from)
+        _ (assert (and (not= :error parsed-from) (not= :error parsed-to)) (str "notation must result in valid position : " parsed-to parsed-from))
+        pos-to (parsed-pos->keyword-pos parsed-to)
+        pos-from (parsed-pos->keyword-pos parsed-from)
+        coord-to (get-coord pos-to)
+        coord-from (get-coord pos-from)]
+    (if (and (not-any? nil? coord-from) (not-any? nil? coord-to)) 
+        (-> board
+            (assoc-in  [(first coord-to) (second coord-to)] piece)
+            (assoc-in  [(first coord-from) (second coord-from)] nil))
+       (error-msg "Cannot put for notation :" to))))
 
+;;(get-in-pos board "e1")
+
+(defn move-to [board from to]
+  (let [piece-to-move (get-in-pos board from) 
+        piece-at-location (get-in-pos board to)] 
+    (put-in-pos board from to piece-to-move)))
+
+(move-to board "f2" "f3")
 
