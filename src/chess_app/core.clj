@@ -17,7 +17,9 @@
 
 (def current-player (atom :white))
 
-(defn switch-turn []
+(defn switch-turn
+  "switchs current player when called"
+  []
 (if (= @current-player :white)
 (reset! current-player :black)
 (reset! current-player :white)))
@@ -56,6 +58,24 @@
           :2 6
           :1 7
           :0 8})
+
+(def pawn-moves-status { ; needed to know if this is the first time a pawn has moved
+                        [:white  0] false 
+                        [:white  1] false 
+                        [:white  2] false 
+                        [:white  3] false 
+                        [:white  4] false 
+                        [:white  5] false 
+                        [:white  6] false 
+                        [:white  7] false 
+                        [:black  0] false
+                        [:black  1] false
+                        [:black  2] false
+                        [:black  3] false
+                        [:black  4] false
+                        [:black  5] false
+                        [:black  6] false
+                        [:black  7] false})
 
 (def piece-offsets
   {:king [[-1 -1] [-1 0] [-1 1] [0 -1] [0 1] [1 -1] [1 0] [1 1]]
@@ -141,7 +161,9 @@
     (put-in-pos board from to piece-to-move)))
 
 
-(defn opponent-piece? [piece]
+(defn opponent-piece?
+  "return true or false depending of if the piece passed to it belongs to the current player, returns true if passed nil"
+  [piece]
   (if (= nil piece)
     true
     (not (some #{piece} (@current-player players)))))
@@ -195,35 +217,61 @@ ex  [[-1 0] [1 0] [0 -1] [0 1]] for the rook "
 
 
 
-(defn knight-moves [board position]
+(defn knight-moves 
+  "returns a list of legal moves for a knight at given position in chess notation"
+  [board position]
   (let [offsets (:knight piece-offsets) 
         vector-pos (chess-notation->vector position)    
         [row col] vector-pos]
    (->> (generate-legal-moves board offsets [row col])
         (map coord->chess-notation))))    
 
-(defn rook-moves [board position]
+(defn rook-moves 
+  "returns a list of legal moves for a rook at given position in chess notation"
+  [board position]
   (let [offsets (:rook piece-offsets)
         vector-pos (chess-notation->vector position)
         [row col] vector-pos]
     (->>(generate-sliding-moves board offsets [row col] )
      (map coord->chess-notation))))
 
+(defn bishop-moves 
+"returns a list of legal moves for a bishop at given position in chess notation"
+  [board position]
+  (let [offsets (:bishop piece-offsets)
+        vector-pos (chess-notation->vector position)
+        [row col] vector-pos]
+    (->> (generate-sliding-moves board offsets [row col])
+         (map coord->chess-notation))))
 
-(defn pawn-moves [board position] 
-  (let [board-size (count board)
-        [row col] position
+(defn queen-moves 
+  "returns a list of legal moves for a queen at given position in chess notation"
+  [board position]
+  (let [offsets (:queen piece-offsets)
+        vector-pos (chess-notation->vector position)
+        [row col] vector-pos]
+    (->> (generate-sliding-moves board offsets [row col])
+         (map coord->chess-notation))))
+
+
+(defn pawn-moves 
+  "returns a list of legal moves for a pawn at given position in chess notation"
+  [board position] 
+  (let [vector-pos (chess-notation->vector position)
+        [row col] vector-pos
         move-lib (if (= @current-player :white) (:white-pawn piece-offsets) (:black-pawn piece-offsets))
         simple-move (:move move-lib)
         double-move (:double-move move-lib)
         capture-move (:captures move-lib)] 
     
-        (concat 
-         (generate-legal-moves board simple-move position)
-         (filter (fn [[row col]] (and (opponent-piece? (get-in board [row col])) (not(nil? (get-in board [row col]))))) (generate-legal-moves board capture-move position)) ;prune if no capture possible
-         (generate-legal-moves board double-move position))))
+        (->>(concat 
+         (generate-legal-moves board simple-move [row col]) ; generates regular moves
+         (filter (fn [[row col]] (and (opponent-piece? (get-in board [row col])) (not(nil? (get-in board [row col]))))) (generate-legal-moves board capture-move [row col])) ;prune if no capture possible
+         (when (not (get pawn-moves-status [@current-player col])) ; when the pawn has not moved yet it generate the double move available
+          (generate-legal-moves board double-move [row col])))
+         (map coord->chess-notation))))
 
 
 
 
-(pawn-moves board [6 6])
+(pawn-moves board "h3")
