@@ -221,8 +221,10 @@ ex  [[-1 0] [1 0] [0 -1] [0 1]] for the rook "
         in-bounds? (fn [[r c]] (and (>= r 0) (< r board-size)
                                     (>= c 0) (< c board-size)))] 
     
-        (into (compute-legal-moves board simple-move position)
-              (compute-legal-moves board double-move position)))
+        (concat 
+         (compute-legal-moves board simple-move position)
+         (compute-legal-moves board capture-move position)
+         (compute-legal-moves board double-move position)))
 
   )
 
