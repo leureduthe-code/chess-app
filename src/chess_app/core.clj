@@ -146,7 +146,7 @@
     true
     (not (some #{piece} (@current-player players)))))
 
-(defn compute-legal-moves [board offsets [current-row current-col]]
+(defn generate-legal-moves [board offsets [current-row current-col]]
 (->> offsets 
      (map (fn [[offset-row offset-col]] [(+ offset-row current-row) (+ offset-col current-col)])) ; generates possible pos from offsets and current pos 
      (filter (fn [[row col]] (and (>= row 0) (< row (count board)) ; keeps only new pos with rows and cols that are in bound
@@ -199,7 +199,7 @@ ex  [[-1 0] [1 0] [0 -1] [0 1]] for the rook "
   (let [offsets (:knight piece-offsets) 
         vector-pos (chess-notation->vector position)    
         [row col] vector-pos]
-   (->> (compute-legal-moves board offsets [row col])
+   (->> (generate-legal-moves board offsets [row col])
         (map coord->chess-notation))))    
 
 (defn rook-moves [board position]
@@ -210,8 +210,7 @@ ex  [[-1 0] [1 0] [0 -1] [0 1]] for the rook "
      (map coord->chess-notation))))
 
 
-(defn generate-pawn-moves [board position]
-  
+(defn pawn-moves [board position] 
   (let [board-size (count board)
         [row col] position
         move-lib (if (= @current-player :white) (:white-pawn piece-offsets) (:black-pawn piece-offsets))
@@ -220,11 +219,11 @@ ex  [[-1 0] [1 0] [0 -1] [0 1]] for the rook "
         capture-move (:captures move-lib)] 
     
         (concat 
-         (compute-legal-moves board simple-move position)
-         (filter (fn [[row col]] (and (opponent-piece? (get-in board [row col])) (not(nil? (get-in board [row col]))))) (compute-legal-moves board capture-move position)) ;prune if no capture possible
-         (compute-legal-moves board double-move position))))
+         (generate-legal-moves board simple-move position)
+         (filter (fn [[row col]] (and (opponent-piece? (get-in board [row col])) (not(nil? (get-in board [row col]))))) (generate-legal-moves board capture-move position)) ;prune if no capture possible
+         (generate-legal-moves board double-move position))))
 
 
 
 
-(generate-pawn-moves board [6 6])
+(pawn-moves board [6 6])
