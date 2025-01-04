@@ -273,5 +273,59 @@ ex  [[-1 0] [1 0] [0 -1] [0 1]] for the rook "
 
 
 
+(def moves-function {
+                     :p pawn-moves
+                     :P pawn-moves
+                     :N knight-moves
+                     :n knight-moves
+                     :b bishop-moves
+                     :B bishop-moves
+                     :Q queen-moves
+                     :q queen-moves
+                     :K nil
+                     :k nil
+                     })
 
-(pawn-moves board "h3")
+
+
+
+
+(defn print-board-with-labels [board]
+  (let [to-string (fn [cell]
+                    (if cell
+                      (name cell)
+                      "."))
+        columns "  a b c d e f g h"]
+    (println)
+    (doseq [[idx row] (map-indexed vector board)]
+      (println (str (- 8 idx) "  " (apply str (interpose " " (map to-string row))))))
+    (println)
+    (print " ")
+    (println columns)))
+
+
+(defn present-moves [f & args]
+  (print ">> You can play : ")
+  (apply println (apply f args)))
+
+(defn game-loop []
+  (println "Welcome to CHESS in Clojure")
+  (println "Here is the board :")
+  (print-board-with-labels board)
+  (println)
+  (println "Enter the chess notation of a piece to know it's available moves (ex : h2)") 
+  (let [command (read-line)
+        piece (get-in-pos board command)] 
+    (cond 
+      (or(= :P piece) (= :p piece)) (present-moves pawn-moves board command ) )
+    
+    
+    ))
+
+
+
+
+(defn -main [& args] 
+  (game-loop)
+  )
+
