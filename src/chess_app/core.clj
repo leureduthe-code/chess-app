@@ -11,8 +11,8 @@
             ;a  ;b ;c ;d ;e ;f ;g ;h
 
 (def players {
-                 :white [:r :n :b :q :k :p]
-                 :black [:R :N :B :Q :K :P]
+                 :black [:r :n :b :q :k :p]
+                 :white [:R :N :B :Q :K :P]
 })
 
 (def current-player (atom :white))
@@ -141,17 +141,21 @@
     (put-in-pos board from to piece-to-move)))
 
 
+(defn opponent-piece? [piece]
+  (if (= nil piece)
+    true
+    (not (some #{piece} (@current-player players)))))
 
 (defn compute-legal-moves [board offsets [current-row current-col]]
-(->> offsets
-     (map (fn [[offset-row offset-col]] [(+ offset-row current-row) (+ offset-col current-col)])) ; generates possible pos from offsets and current pos
+(->> offsets 
+     (map (fn [[offset-row offset-col]] [(+ offset-row current-row) (+ offset-col current-col)])) ; generates possible pos from offsets and current pos 
      (filter (fn [[row col]] (and (>= row 0) (< row (count board)) ; keeps only new pos with rows and cols that are in bound
-                                  (>= col 0) (< col (count board)))))
+                                  (>= col 0) (< col (count board))))) 
      (filter (fn [[row col]] ; prunes move that end on case with piece of current player
                (let [piece-at-pos (get-in board [row col])]
-                 (if (some #{piece-at-pos} (@current-player players))
-                   false
-                   true))))))
+                 (if (opponent-piece? piece-at-pos)
+                   true
+                   false))))))
 
 
 
@@ -182,11 +186,13 @@ ex  [[-1 0] [1 0] [0 -1] [0 1]] for the rook "
                       ; the position we are at is not empty
                       (let [piece-at-pos (get-in board new-pos)]
                       ; we check if it is a piece of the current player 
-                        (if (some #{piece-at-pos} (@current-player players)) 
+                        (if (opponent-piece? piece-at-pos) 
                         current-moves ;if yes we do not add the move and stop looping
                         (conj current-moves new-pos)))))))) ;else it is a capturing move and we add it and stop looping
                       [] ; start with empty move list
                       directions)))
+
+
 
 
 (defn knight-moves [board position]
@@ -203,7 +209,24 @@ ex  [[-1 0] [1 0] [0 -1] [0 1]] for the rook "
     (->>(generate-sliding-moves board offsets [row col] )
      (map coord->chess-notation))))
 
-( rook-moves board "e4")
+
+(defn generate-pawn-moves [board position]
+  
+  (let [board-size (count board)
+        [row col] position
+        move-lib (if (= @current-player :white) (:white-pawn piece-offsets) (:black-pawn piece-offsets))
+        simple-move (:move move-lib)
+        double-move (:double-move move-lib)
+        capture-move (:captures move-lib)
+        in-bounds? (fn [[r c]] (and (>= r 0) (< r board-size)
+                                    (>= c 0) (< c board-size)))] 
+    
+        (into (compute-legal-moves board simple-move position)
+              (compute-legal-moves board double-move position)))
+
+  )
 
 
 
+
+(generate-pawn-moves board [6 6])
