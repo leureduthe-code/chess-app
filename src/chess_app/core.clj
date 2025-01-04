@@ -39,6 +39,24 @@
                      :g 6 
                      :h 7})
 
+(def col-map {:0 "a"
+          :1 "b"
+          :2 "c"
+          :3 "d"
+          :4 "e"
+          :5 "f"
+          :6 "g"
+          :7 "h" })
+
+(def row-map {:7 1
+          :6 2
+          :5 3
+          :4 4
+          :3 5
+          :2 6
+          :1 7
+          :0 8})
+
 (def piece-offsets
   {:king [[-1 -1] [-1 0] [-1 1] [0 -1] [0 1] [1 -1] [1 0] [1 1]]
    :queen (concat [[-1 0] [1 0] [0 -1] [0 1]] [[-1 -1] [-1 1] [1 -1] [1 1]])
@@ -47,12 +65,6 @@
    :knight [[-2 -1] [-2 1] [-1 -2] [-1 2] [1 -2] [1 2] [2 -1] [2 1]]
    :white-pawn {:move [[-1 0]] :double-move [[-2 0]] :captures [[-1 -1] [-1 1]]}
    :black-pawn {:move [[1 0]] :double-move [[2 0]] :captures [[1 -1] [1 1]]}})                   
-
-(defn legal-move-pawn [board pawn-pos]
-(comment "one square in front if nil in front or one square lateraly if oponent piece in that lateral square"))
-
-(defn legal-move-rook [board rook-pos]
-(comment "any number of squares verticaly and horizontaly, blocked by same side pieces, captures oponent pieces"))
 
 
 
@@ -84,6 +96,9 @@
   "turns keyword-pos in vector coord '(:e :1) -> '(7 4)"
   [keyword-pos]
   (list ((second keyword-pos) chess-notation) ((first keyword-pos) chess-notation)))
+
+(defn coord->chess-notation [[row col]]
+  (str ((keyword (str col)) col-map)  ((keyword (str row)) row-map) ))
 
 (defn chess-notation->vector [chess-notation]
 (-> chess-notation
@@ -127,11 +142,16 @@
 
 
 
-(defn compute-legal-moves [board-size offsets [current-row current-col]]
+(defn compute-legal-moves [board offsets [current-row current-col]]
 (->> offsets
-      (map (fn [[offset-row offset-col]] [(+ offset-row current-row) (+ offset-col current-col)])) ; generates possible pos from offsets and current pos
-      (filter (fn [[row col]] (and (>= row 0) (< row board-size) ; keeps only new pos with rows and cols that are in bound
-                                   (>= col 0) (< col board-size))))))
+     (map (fn [[offset-row offset-col]] [(+ offset-row current-row) (+ offset-col current-col)])) ; generates possible pos from offsets and current pos
+     (filter (fn [[row col]] (and (>= row 0) (< row (count board)) ; keeps only new pos with rows and cols that are in bound
+                                  (>= col 0) (< col (count board)))))
+     (filter (fn [[row col]] ; prunes move that end on case with piece of current player
+               (let [piece-at-pos (get-in board [row col])]
+                 (if (some #{piece-at-pos} (@current-player players))
+                   false
+                   true))))))
 
 
 
@@ -146,8 +166,8 @@
 "generates all possibles moves for sliding pieces (rook queen bishop) including capturing moves. 
 It takes the board , the current position of the piece ex [4 4] and directions offset of the piece
 ex  [[-1 0] [1 0] [0 -1] [0 1]] for the rook "
-[board position directions]
-  (let [board-size 8
+[board  directions position ]
+  (let [board-size (count board)
         in-bounds? (fn [[r c]] (and (>= r 0) (< r board-size)
                                     (>= c 0) (< c board-size)))]
     (reduce (fn [moves direction]
@@ -169,11 +189,21 @@ ex  [[-1 0] [1 0] [0 -1] [0 1]] for the rook "
                       directions)))
 
 
-(defn knight-moves [position]
+(defn knight-moves [board position]
   (let [offsets (:knight piece-offsets) 
         vector-pos (chess-notation->vector position)    
-        [row col] vector-pos
-        board-size 8]
-    (compute-legal-moves board-size offsets [row col])))    
+        [row col] vector-pos]
+   (->> (compute-legal-moves board offsets [row col])
+        (map coord->chess-notation))))    
+
+(defn rook-moves [board position]
+  (let [offsets (:rook piece-offsets)
+        vector-pos (chess-notation->vector position)
+        [row col] vector-pos]
+    (->>(generate-sliding-moves board offsets [row col] )
+     (map coord->chess-notation))))
+
+( rook-moves board "e4")
+
 
 
