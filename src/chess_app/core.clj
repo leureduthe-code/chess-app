@@ -217,16 +217,12 @@ ex  [[-1 0] [1 0] [0 -1] [0 1]] for the rook "
         move-lib (if (= @current-player :white) (:white-pawn piece-offsets) (:black-pawn piece-offsets))
         simple-move (:move move-lib)
         double-move (:double-move move-lib)
-        capture-move (:captures move-lib)
-        in-bounds? (fn [[r c]] (and (>= r 0) (< r board-size)
-                                    (>= c 0) (< c board-size)))] 
+        capture-move (:captures move-lib)] 
     
         (concat 
          (compute-legal-moves board simple-move position)
-         (compute-legal-moves board capture-move position)
-         (compute-legal-moves board double-move position)))
-
-  )
+         (filter (fn [[row col]] (and (opponent-piece? (get-in board [row col])) (not(nil? (get-in board [row col]))))) (compute-legal-moves board capture-move position)) ;prune if no capture possible
+         (compute-legal-moves board double-move position))))
 
 
 
