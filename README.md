@@ -1,6 +1,6 @@
 # chess-app
 
-A Clojure library designed to ... well, that part is up to you.
+A minimalist implementation of chess that I am making to teach myself Clojure
 
 ## Usage
 
