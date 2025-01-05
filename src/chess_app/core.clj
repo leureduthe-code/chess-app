@@ -163,19 +163,19 @@
 
 (defn opponent-piece?
   "return true or false depending of if the piece passed to it belongs to the current player, returns true if passed nil"
-  [piece]
+  [piece opponent-color]
   (if (= nil piece)
     true
-    (not (some #{piece} (@current-player players)))))
+    (some #{piece} (opponent-color players))))
 
-(defn generate-legal-moves [board offsets [current-row current-col]]
+(defn generate-legal-moves [board offsets [current-row current-col] opponent-color]
 (->> offsets 
      (map (fn [[offset-row offset-col]] [(+ offset-row current-row) (+ offset-col current-col)])) ; generates possible pos from offsets and current pos 
      (filter (fn [[row col]] (and (>= row 0) (< row (count board)) ; keeps only new pos with rows and cols that are in bound
                                   (>= col 0) (< col (count board))))) 
      (filter (fn [[row col]] ; prunes move that end on case with piece of current player
                (let [piece-at-pos (get-in board [row col])]
-                 (if (opponent-piece? piece-at-pos)
+                 (if (opponent-piece? piece-at-pos opponent-color)
                    true
                    false))))))
 
@@ -192,7 +192,7 @@
 "generates all possibles moves for sliding pieces (rook queen bishop) including capturing moves. 
 It takes the board , the current position of the piece ex [4 4] and directions offset of the piece
 ex  [[-1 0] [1 0] [0 -1] [0 1]] for the rook "
-[board  directions position ]
+[board  directions position opponent-color ]
   (let [board-size (count board)
         in-bounds? (fn [[r c]] (and (>= r 0) (< r board-size)
                                     (>= c 0) (< c board-size)))]
@@ -208,7 +208,7 @@ ex  [[-1 0] [1 0] [0 -1] [0 1]] for the rook "
                       ; the position we are at is not empty
                       (let [piece-at-pos (get-in board new-pos)]
                       ; we check if it is a piece of the current player 
-                        (if (opponent-piece? piece-at-pos) 
+                        (if (opponent-piece? piece-at-pos opponent-color) 
                         current-moves ;if yes we do not add the move and stop looping
                         (conj current-moves new-pos)))))))) ;else it is a capturing move and we add it and stop looping
                       [] ; start with empty move list
@@ -219,56 +219,63 @@ ex  [[-1 0] [1 0] [0 -1] [0 1]] for the rook "
 
 (defn knight-moves 
   "returns a list of legal moves for a knight at given position in chess notation"
-  [board position]
+  [board position opponent-color]
   (let [offsets (:knight piece-offsets) 
         vector-pos (chess-notation->vector position)    
         [row col] vector-pos]
-   (->> (generate-legal-moves board offsets [row col])
+   (->> (generate-legal-moves board offsets [row col] opponent-color)
         (map coord->chess-notation))))    
 
 (defn rook-moves 
   "returns a list of legal moves for a rook at given position in chess notation"
-  [board position]
+  [board position opponent-color]
   (let [offsets (:rook piece-offsets)
         vector-pos (chess-notation->vector position)
         [row col] vector-pos]
-    (->>(generate-sliding-moves board offsets [row col] )
+    (->>(generate-sliding-moves board offsets [row col] opponent-color )
      (map coord->chess-notation))))
 
 (defn bishop-moves 
 "returns a list of legal moves for a bishop at given position in chess notation"
-  [board position]
+  [board position opponent-color]
   (let [offsets (:bishop piece-offsets)
         vector-pos (chess-notation->vector position)
         [row col] vector-pos]
-    (->> (generate-sliding-moves board offsets [row col])
+    (->> (generate-sliding-moves board offsets [row col] opponent-color)
          (map coord->chess-notation))))
 
 (defn queen-moves 
   "returns a list of legal moves for a queen at given position in chess notation"
-  [board position]
+  [board position opponent-color]
   (let [offsets (:queen piece-offsets)
         vector-pos (chess-notation->vector position)
         [row col] vector-pos]
-    (->> (generate-sliding-moves board offsets [row col])
+    (->> (generate-sliding-moves board offsets [row col] opponent-color)
          (map coord->chess-notation))))
+
+(defn king-moves 
+  "returns a list of legal moves for a queen at given a board and his position in chess notation"
+  [board position opponent-color]
+  ;(println "Work in progress")
+  )
 
 
 (defn pawn-moves 
   "returns a list of legal moves for a pawn at given position in chess notation"
-  [board position] 
+  [board position opponent-color] 
   (let [vector-pos (chess-notation->vector position)
+        piece (get-in board vector-pos)
         [row col] vector-pos
-        move-lib (if (= @current-player :white) (:white-pawn piece-offsets) (:black-pawn piece-offsets))
+        move-lib (if (some #{piece} (:white players)) (:white-pawn piece-offsets) (:black-pawn piece-offsets))
         simple-move (:move move-lib)
         double-move (:double-move move-lib)
         capture-move (:captures move-lib)] 
     
         (->>(concat 
-         (generate-legal-moves board simple-move [row col]) ; generates regular moves
-         (filter (fn [[row col]] (and (opponent-piece? (get-in board [row col])) (not(nil? (get-in board [row col]))))) (generate-legal-moves board capture-move [row col])) ;prune if no capture possible
+         (generate-legal-moves board simple-move [row col] opponent-color) ; generates regular moves
+         (filter (fn [[row col]] (and (opponent-piece? (get-in board [row col]) opponent-color) (not(nil? (get-in board [row col]))))) (generate-legal-moves board capture-move [row col] opponent-color)) ;prune if no capture possible
          (when (not (get pawn-moves-status [@current-player col])) ; when the pawn has not moved yet it generate the double move available
-          (generate-legal-moves board double-move [row col])))
+          (generate-legal-moves board double-move [row col] opponent-color)))
          (map coord->chess-notation))))
 
 
@@ -276,14 +283,16 @@ ex  [[-1 0] [1 0] [0 -1] [0 1]] for the rook "
 (def moves-function {
                      :p pawn-moves
                      :P pawn-moves
+                     :r rook-moves
+                     :R rook-moves
                      :N knight-moves
                      :n knight-moves
                      :b bishop-moves
                      :B bishop-moves
                      :Q queen-moves
                      :q queen-moves
-                     :K nil
-                     :k nil
+                     :K king-moves
+                     :k king-moves
                      })
 
 
@@ -292,39 +301,52 @@ ex  [[-1 0] [1 0] [0 -1] [0 1]] for the rook "
 
 
 (comment (for [row (range (count board))
-       col (range (count (nth board row)))]
-   (let [piece (get-in board [col row])])
-   )
+               col (range (count (nth board row)))]
+           (let [piece (get-in board [col row])]))
 
-(doseq [row (range (count board))
-        col (range (count (nth board row)))]
-  (println "Processing:" [col row]))
-)
+         (doseq [row (range (count board))
+                 col (range (count (nth board row)))]
+           (println "Processing:" [col row]))
+
+
+         ;;find all moves for white pawns
+         (for [pos ["a2" "b2" "c2" "d2" "e2" "f2" "g2" "h2"]]
+           (pawn-moves board pos :black))
+         ;; does the same for black pawns
+          (for [pos ["a7" "b7" "c7" "d7" "e7" "f7" "g7" "h7"]]
+           (pawn-moves board pos :black))
+         
+          ;; counts the moves 
+         (count (flatten (for [pos ["a2" "b2" "c2" "d2" "e2" "f2" "g2" "h2"]]
+                           (pawn-moves board pos :black))))
+         ;;find all moves for white knights
+         (count (flatten (for [pos ["b1" "g1"]]
+                           (knight-moves board pos :black))))
+         )
 
 (defn find-moves 
   "given a piece (ex :K) and a position (ex e4) gives the moves of that piece"
-  [ piece position]
-  (cond
-    (or (= :P piece) (= :p piece)) ( pawn-moves board position)
-    :else nil))
+  [ board piece position opponent-color]
+  (println piece position)
+   ((piece moves-function) board position opponent-color))
+  
 
 
 (defn get-opponent-moves 
   "given the board and the opponent color , give all the possible moves of his pieces"
   [board opponent-color] 
-  
   (->>(for [row (range (count board))
             col (range (count (nth board row)))]
         (let [piece (get-in board [col row])
               chess-notation (coord->chess-notation [col row])]
            (when (some #{piece} (opponent-color players)) ;; if the piece is opponent piece compute the moves and add them
-             (find-moves piece chess-notation))))
+             (find-moves board piece chess-notation opponent-color))))
       (filter #(not (nil? %)))
       (flatten)
       (set)))
 
 
-(get-opponent-moves board :black)
+
 
 (defn print-board-with-labels [board]
   (let [to-string (fn [cell]
@@ -354,10 +376,10 @@ ex  [[-1 0] [1 0] [0 -1] [0 1]] for the rook "
   (print-board-with-labels board)
   (println)
   (println "Enter the chess notation of a piece to know it's available moves (ex : h2)") 
-  (let [command (read-line)
-        piece (get-in-pos board command)] 
-    (cond 
-      (or(= :P piece) (= :p piece)) (present-moves pawn-moves board command ) )
+  (let [position (read-line)
+        piece (get-in-pos board position)
+        opponent-color (if (= :white @current-player) :black :white)] 
+    (find-moves board piece position opponent-color)
     
     
     ))
@@ -366,5 +388,6 @@ ex  [[-1 0] [1 0] [0 -1] [0 1]] for the rook "
 
 
 (defn -main [& args] 
-  (game-loop))
+  ;(game-loop)
+  )
 
